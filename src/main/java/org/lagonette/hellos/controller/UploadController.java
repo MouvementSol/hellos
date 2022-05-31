@@ -16,6 +16,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import org.apache.commons.io.IOUtils;
 
 @Controller
 public class UploadController {
@@ -38,8 +39,9 @@ public class UploadController {
         } else {
             try {
                 InputStream inputStream = file.getInputStream();
-                final List<String> lines = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))
-                        .lines().toList();
+                //final List<String> lines = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8)) .lines().toList();
+                final List<String> lines = IOUtils.readLines(inputStream, "UTF-8");
+
                 String csvUpdated = fixCsvFile(lines);
 
                 final CsvToBean build = getBuild(csvUpdated);
