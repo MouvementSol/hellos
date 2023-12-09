@@ -94,7 +94,7 @@ public class HelloAssoService {
             return end;
         }
 
-        if (!dotenv.get("HELLO_ASSO_FORM").equals(notification.getFormSlug())) {
+        if (!dotenv.get("HELLO_ASSO_FORM").equals(notification.getFormSlug()) && (dotenv.get("HELLO_ASSO_FORM2")==null || !dotenv.get("HELLO_ASSO_FORM2").equals(notification.getFormSlug()))) {
             LOGGER.error("Invalid form slug, the body is : {}", helloAssoPaymentNotification.getData());
             end.put(false, null);
             return end;
@@ -162,9 +162,11 @@ public class HelloAssoService {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime beginDate = now.minusDays(nbDays);
 
-        ResponseEntity<HelloAssoFormPayments> formResponse;
+        ResponseEntity<HelloAssoFormPayments> formResponse, formResponse2 = null;
         try {
-            formResponse = callPaymentFormHistory(token, now, beginDate);
+            formResponse = callPaymentFormHistory(token, now, beginDate, "HELLO_ASSO_FORM");
+            if (dotenv.get("HELLO_ASSO_FORM2")!= null)
+                formResponse2 = callPaymentFormHistory(token, now, beginDate, "HELLO_ASSO_FORM2");
         } catch (WebClientException exception) {
             LOGGER.error("error during data fetch : {}", exception.getCause().getMessage());
             return;
@@ -181,14 +183,23 @@ public class HelloAssoService {
                     .forEach(helloAssoPayment -> paymentsToSave
                             .add(new Payment(Integer.parseInt(helloAssoPayment.getId()), formatDate(helloAssoPayment.getDate()), (float) helloAssoPayment.getAmount() / (float) 100,
                                     helloAssoPayment.getPayer().getFirstName(), helloAssoPayment.getPayer().getLastName(), helloAssoPayment.getPayer().getEmail())));
-            paymentRepository.saveAll(paymentsToSave);
         }
+        if (formResponse2 != null && formResponse2.getBody() != null && formResponse2.getBody().getData() != null) {
+            formResponse2.getBody().getData()
+                    .stream()
+                    .filter(o -> !allPayments.contains(Integer.parseInt(o.getId())))
+                    .forEach(helloAssoPayment -> paymentsToSave
+                            .add(new Payment(Integer.parseInt(helloAssoPayment.getId()), formatDate(helloAssoPayment.getDate()), (float) helloAssoPayment.getAmount() / (float) 100,
+                                    helloAssoPayment.getPayer().getFirstName(), helloAssoPayment.getPayer().getLastName(), helloAssoPayment.getPayer().getEmail())));
+        }
+        if (!paymentsToSave.isEmpty())
+            paymentRepository.saveAll(paymentsToSave);
     }
 
-    public ResponseEntity<HelloAssoFormPayments> callPaymentFormHistory(String accessToken, LocalDateTime now, LocalDateTime beginDate) {
+    public ResponseEntity<HelloAssoFormPayments> callPaymentFormHistory(String accessToken, LocalDateTime now, LocalDateTime beginDate, String strEnvHelloAssoForm) {
         return WebClient.builder().build().get()
                 .uri(dotenv.get("HELLO_ASSO_API_URL") + "v5/organizations/" + dotenv.get("HELLO_ASSO_ORGANIZATION") +
-                        "/forms/PaymentForm/" + dotenv.get("HELLO_ASSO_FORM") + "/payments?from=" + beginDate + "&to=" + now + "&states=Authorized")
+                        "/forms/PaymentForm/" + dotenv.get(strEnvHelloAssoForm) + "/payments?from=" + beginDate + "&to=" + now + "&states=Authorized")
                 .header("authorization", "Bearer " + accessToken)
                 .retrieve()
                 .toEntity(HelloAssoFormPayments.class)
