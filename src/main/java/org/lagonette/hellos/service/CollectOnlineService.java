@@ -25,11 +25,12 @@ public class CollectOnlineService {
         this.dotenv = dotenv;
     }
 
-    public void importPaymentsFromCSV(List<Payment> paymentList) {
+    public float importPaymentsFromCSV(List<Payment> paymentList) {
         NumberFormat format = NumberFormat.getInstance(Locale.FRANCE);
         List<org.lagonette.hellos.entity.Payment> paymentsToSave = new ArrayList<>();
 
         final String colChangeKeyword = dotenv.get("COL_CHANGE_KEYWORD");
+        float fTotal = 0;
         for (Payment payment : paymentList) {
             try {
                 float montant = format.parse(payment.getMontant()).floatValue();
@@ -41,11 +42,13 @@ public class CollectOnlineService {
                             payment.getPrenom(),
                             payment.getNom(),
                             payment.getEmail()));
+                    fTotal += montant;
                 }
             } catch (ParseException e) {
                 LOGGER.error(e.toString());
             }
         }
         paymentRepository.saveAll(paymentsToSave);
+        return fTotal;
     }
 }

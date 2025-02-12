@@ -36,6 +36,7 @@ public class UploadController {
         if (file.isEmpty()) {
             model.addAttribute("message", "Merci de sélectionner un fichier CSV");
             model.addAttribute("status", false);
+            model.addAttribute("total", 0);
         } else {
             try {
                 InputStream inputStream = file.getInputStream();
@@ -46,13 +47,15 @@ public class UploadController {
 
                 final CsvToBean build = getBuild(csvUpdated);
                 List beans = build.parse();
-                collectOnlineService.importPaymentsFromCSV(beans);
+                float fTot = collectOnlineService.importPaymentsFromCSV(beans);
                 model.addAttribute("status", true);
                 model.addAttribute("message", "L'import a été réalisé avec succès");
+                model.addAttribute("total", fTot);
             } catch (Exception ex) {
                 LOGGER.error(ex.getStackTrace().toString());
                 model.addAttribute("message", "An error occurred while processing the CSV file." + ex.getCause());
                 model.addAttribute("status", false);
+                model.addAttribute("total", 0);
             }
         }
 
